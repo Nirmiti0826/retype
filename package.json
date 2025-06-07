@@ -1,0 +1,86 @@
+{
+    "name": "retype",
+    "displayName": "ReType",
+    "description": "Transform code editing into typing practice - like MonkeyType for programming",
+    "version": "1.0.0",
+    "publisher": "retype-dev",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Other",
+        "Education"
+    ],
+    "keywords": [
+        "typing",
+        "practice",
+        "monkeytype",
+        "programming",
+        "education"
+    ],
+    "activationEvents": [
+        "onCommand:retype.startPractice",
+        "onCommand:retype.stopPractice",
+        "onCommand:retype.resetSession"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "retype.startPractice",
+                "title": "Start Practice Mode",
+                "category": "ReType"
+            },
+            {
+                "command": "retype.stopPractice",
+                "title": "Stop Practice Mode",
+                "category": "ReType"
+            },
+            {
+                "command": "retype.resetSession",
+                "title": "Reset Current Session",
+                "category": "ReType"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "retype.startPractice",
+                "key": "ctrl+shift+r",
+                "mac": "cmd+shift+r"
+            },
+            {
+                "command": "retype.stopPractice",
+                "key": "ctrl+shift+e",
+                "mac": "cmd+shift+e"
+            }
+        ],
+        "configuration": {
+            "title": "ReType",
+            "properties": {
+                "retype.theme": {
+                    "type": "string",
+                    "default": "solarized-light",
+                    "description": "Color theme for typing practice",
+                    "enum": [
+                        "solarized-light"
+                    ]
+                },
+                "retype.showRealTimeStats": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show real-time typing statistics in status bar"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.74.0",
+        "@types/node": "16.x",
+        "typescript": "^4.9.4"
+    }
+}
