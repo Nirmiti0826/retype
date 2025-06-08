@@ -1,9 +1,13 @@
 {
     "name": "retype",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Nirmiti0826/retype.git"
+    },
     "displayName": "ReType",
     "description": "Transform code editing into typing practice - like MonkeyType for programming",
     "version": "1.0.0",
-    "publisher": "retype-dev",
+    "publisher": "Nirmiti",
     "engines": {
         "vscode": "^1.74.0"
     },
@@ -82,5 +86,6 @@
         "@types/vscode": "^1.74.0",
         "@types/node": "16.x",
         "typescript": "^4.9.4"
-    }
+    },
+    "license": "MIT"
 }

@@ -31,14 +31,27 @@ export class RetypeMode {
         }
 
         this.currentEditor = editor;
-        this.startPosition = editor.selection.active;
+        
+        // Check if cursor is at the end of the document
+        const document = editor.document;
+        const lastPosition = document.positionAt(document.getText().length);
+        const currentPosition = editor.selection.active;
+        
+        // If cursor is at or near the end of the document, move to the beginning
+        if (currentPosition.line >= lastPosition.line - 1 && 
+            currentPosition.character >= lastPosition.character - 1) {
+            this.startPosition = new vscode.Position(0, 0);
+            editor.selection = new vscode.Selection(this.startPosition, this.startPosition);
+        } else {
+            this.startPosition = editor.selection.active;
+        }
+        
         this.active = true;
         this.typedText = '';
         this.errors = [];
         this.currentPosition = 0;
 
         // Get text from cursor position to end of document
-        const document = editor.document;
         const startOffset = document.offsetAt(this.startPosition);
         const endOffset = document.getText().length;
         this.originalText = document.getText().substring(startOffset);
@@ -175,6 +188,58 @@ export class RetypeMode {
 
         this.context.subscriptions.push(tabListener);
 
+        // Intercept backspace command
+        const backspaceListener = vscode.commands.registerCommand('deleteLeft', () => {
+            if (!this.active || !this.currentEditor) {
+                return vscode.commands.executeCommand('default:deleteLeft');
+            }
+            
+            // Handle backspace in practice mode
+            this.handleBackspace();
+            return; // Don't execute default backspace to prevent document modification
+        });
+
+        this.context.subscriptions.push(backspaceListener);
+
+        // Prevent left arrow key movement during practice
+        const leftArrowListener = vscode.commands.registerCommand('cursorLeft', () => {
+            if (!this.active || !this.currentEditor) {
+                return vscode.commands.executeCommand('default:cursorLeft');
+            }
+            // Do nothing - prevent cursor movement during practice
+            return;
+        });
+
+        this.context.subscriptions.push(leftArrowListener);
+
+        // Prevent right arrow key movement during practice
+        const rightArrowListener = vscode.commands.registerCommand('cursorRight', () => {
+            if (!this.active || !this.currentEditor) {
+                return vscode.commands.executeCommand('default:cursorRight');
+            }
+            // Do nothing - prevent cursor movement during practice
+            return;
+        });
+
+        this.context.subscriptions.push(rightArrowListener);
+
+        // Prevent other cursor movement commands
+        const cursorMovementCommands = [
+            'cursorUp', 'cursorDown', 'cursorHome', 'cursorEnd',
+            'cursorPageUp', 'cursorPageDown', 'cursorWordLeft', 'cursorWordRight'
+        ];
+
+        cursorMovementCommands.forEach(command => {
+            const listener = vscode.commands.registerCommand(command, () => {
+                if (!this.active || !this.currentEditor) {
+                    return vscode.commands.executeCommand(`default:${command}`);
+                }
+                // Do nothing - prevent cursor movement during practice
+                return;
+            });
+            this.context.subscriptions.push(listener);
+        });
+
         // Listen for selection changes to keep cursor in correct position
         this.selectionChangeListener = vscode.window.onDidChangeTextEditorSelection((event) => {
             if (!this.active || !this.currentEditor || event.textEditor !== this.currentEditor) {
@@ -278,6 +343,11 @@ export class RetypeMode {
             return true;
         }
 
+        // Check if expected character is an image icon or special symbol that should accept any input
+        if (this.isImageIconOrSpecialSymbol(expected)) {
+            return true; // Accept any character for image icons and special symbols
+        }
+
         // Normalize characters to handle different encodings
         const normalizedTyped = this.normalizeCharacter(typed);
         const normalizedExpected = this.normalizeCharacter(expected);
@@ -316,6 +386,63 @@ export class RetypeMode {
         }
 
         return false;
+    }
+
+    private isImageIconOrSpecialSymbol(char: string): boolean {
+        const charCode = char.charCodeAt(0);
+        
+        // Unicode ranges for common image/icon symbols and special characters
+        const iconRanges = [
+            // Emoticons and symbols
+            [0x2600, 0x26FF], // Miscellaneous Symbols
+            [0x2700, 0x27BF], // Dingbats
+            [0x1F300, 0x1F5FF], // Miscellaneous Symbols and Pictographs
+            [0x1F600, 0x1F64F], // Emoticons
+            [0x1F680, 0x1F6FF], // Transport and Map Symbols
+            [0x1F700, 0x1F77F], // Alchemical Symbols
+            [0x1F780, 0x1F7FF], // Geometric Shapes Extended
+            [0x1F800, 0x1F8FF], // Supplemental Arrows-C
+            [0x1F900, 0x1F9FF], // Supplemental Symbols and Pictographs
+            [0x1FA00, 0x1FA6F], // Chess Symbols
+            [0x1FA70, 0x1FAFF], // Symbols and Pictographs Extended-A
+            // Mathematical symbols
+            [0x2200, 0x22FF], // Mathematical Operators
+            [0x2300, 0x23FF], // Miscellaneous Technical
+            [0x25A0, 0x25FF], // Geometric Shapes
+            [0x2190, 0x21FF], // Arrows
+            // Currency symbols
+            [0x20A0, 0x20CF], // Currency Symbols
+            // Other special characters that might be difficult to type
+            [0x00A0, 0x00FF], // Latin-1 Supplement (includes many special chars)
+            [0x2000, 0x206F], // General Punctuation
+        ];
+
+        // Check if character falls within any icon/symbol range
+        for (const [start, end] of iconRanges) {
+            if (charCode >= start && charCode <= end) {
+                return true;
+            }
+        }
+
+        // Additional checks for specific problematic characters
+        const problematicChars = [
+            '\u00A9', // Copyright symbol
+            '\u00AE', // Registered trademark
+            '\u2122', // Trademark symbol
+            '\u2026', // Horizontal ellipsis
+            '\u2013', '\u2014', // En dash, Em dash
+            '\u201C', '\u201D', // Left/right double quotation marks
+            '\u2018', '\u2019', // Left/right single quotation marks
+            '\u00B0', // Degree symbol
+            '\u00B1', // Plus-minus sign
+            '\u00D7', // Multiplication sign
+            '\u00F7', // Division sign
+            '\u221E', // Infinity symbol
+            '\u2260', // Not equal to
+            '\u2264', '\u2265', // Less than or equal to, Greater than or equal to
+        ];
+
+        return problematicChars.includes(char);
     }
 
     private normalizeCharacter(char: string): string {
@@ -383,14 +510,17 @@ export class RetypeMode {
         // Remove any error at the current position
         this.errors = this.errors.filter(error => error.position !== this.currentPosition);
 
-        // Update stats
+        // Update stats - remove the last character
         this.statsTracker.removeLastCharacter();
 
-        // Move cursor back
+        // Move cursor back to the correct position
         this.updateCursorPosition();
 
-        // Update decorations
+        // Update visual decorations to reflect the change
         this.updateDecorations();
+
+        // Log for debugging
+        console.debug('ReType: Backspace - moved to position', this.currentPosition);
     }
 
     private updateCursorPosition(): void {
@@ -490,6 +620,9 @@ export class RetypeMode {
             this.selectionChangeListener.dispose();
             this.selectionChangeListener = undefined;
         }
+
+        // Note: Other command listeners are automatically disposed when the extension context is disposed
+        // since they were added to this.context.subscriptions
     }
 
     public dispose(): void {
